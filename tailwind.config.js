@@ -1,9 +1,9 @@
 /** @type {import('tailwindcss').Config} */
-
 module.exports = {
   content: [
-    "./index.html", // Agrega tus rutas de archivos aquí
-    "./src/**/*.{html,js,jsx,ts,tsx}",
+    './resources/**/*.blade.php',
+    './resources/**/*.js',
+    './resources/**/*.vue',
   ],
   theme: {
     extend: {},
