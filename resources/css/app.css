@@ -25,3 +25,14 @@
     transform: scale(0.95);
     transition: transform 0.3s ease;
 }*/
+
+/* Estilos para el fondo del modal */
+.modal-open {
+    overflow: hidden;
+}
+
+/* Estilos del contenedor del modal para hacer scroll solo dentro del modal */
+#modalContent {
+    max-height: 80vh; /* O lo que prefieras */
+    overflow-y: auto;
+}
