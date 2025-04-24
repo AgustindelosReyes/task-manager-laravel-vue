@@ -8,12 +8,25 @@ use Illuminate\Http\Request;
 class TaskController extends Controller
 {
     // Mostrar todas las tareas
-    public function index()
+    public function index(Request $request)
     {
-        $tasks = Task::orderBy('created_at', 'desc')->paginate(5); // Mostrará 5 tareas por página
-        return view('tasks.index', ['tasks' => $tasks]);  // Pasa las tareas a la vista
-        // return response()->file(resource_path('views/tasks/index.blade.php'));
+        $filter = $request->query('filter');
+        $search = $request->query('search');
+
+        $tasks = Task::when($filter === 'completed', function ($query) {
+                return $query->where('completed', true);
+            })
+            ->when($filter === 'pending', function ($query) {
+                return $query->where('completed', false);
+            })
+            ->when($search, function ($query, $search) {
+                return $query->where('name', 'like', '%' . $search . '%');
+            })
+            ->paginate(5);
+
+        return view('tasks.index', compact('tasks', 'filter', 'search'));
     }
+
 
     /// Guardar una nueva tarea
     public function store(Request $request)
@@ -57,7 +70,7 @@ class TaskController extends Controller
             'completed' => $request->has('completed'),
         ]);
 
-        return redirect()->route('tasks.index');
+        return redirect()->route('tasks.index')->with('success', 'Tarea actualizada correctamente.');
     }
 
     public function destroy($id)
@@ -90,8 +103,10 @@ class TaskController extends Controller
 
         // Devolver una respuesta JSON
         return response()->json([
-            'message' => 'Tareas eliminadas correctamente.',
+            'success' => true,
+            'deleted_ids' => $request->selected_tasks
         ]);
+        
     }
 
     public function bulkStore(Request $request)

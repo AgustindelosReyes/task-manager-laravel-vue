@@ -40,11 +40,75 @@
         </button>
     </div>
 
+    <!-- <div class="flex justify-center space-x-4 mb-6">
+        <a href="{{ route('tasks.index') }}" class="{{ $filter === null ? 'font-bold underline' : '' }}">Todas</a>
+        <a href="{{ route('tasks.index', ['filter' => 'completed']) }}" class="{{ $filter === 'completed' ? 'font-bold underline' : '' }}">Completadas</a>
+        <a href="{{ route('tasks.index', ['filter' => 'pending']) }}" class="{{ $filter === 'pending' ? 'font-bold underline' : '' }}">Pendientes</a>
+    </div>
+    
+    <form method="GET" action="{{ route('tasks.index') }}" class="mb-4 flex items-center gap-2">
+        <input 
+            type="text" 
+            name="search" 
+            value="{{ request('search') }}" 
+            placeholder="Buscar tareas..." 
+            class="border rounded px-3 py-1 w-full"
+        >
+        <button 
+            type="submit" 
+            class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition"
+        >
+            Buscar
+        </button>
+    </form> -->
+
+    <div class="flex justify-center space-x-4 mb-6">
+        <a 
+            href="{{ route('tasks.index', array_filter(['filter' => null, 'search' => request('search')])) }}" 
+            class="{{ $filter === null ? 'font-bold underline' : '' }}"
+        >
+            Todas
+        </a>
+        <a 
+            href="{{ route('tasks.index', array_filter(['filter' => 'completed', 'search' => request('search')])) }}" 
+            class="{{ $filter === 'completed' ? 'font-bold underline' : '' }}"
+        >
+            Completadas
+        </a>
+        <a 
+            href="{{ route('tasks.index', array_filter(['filter' => 'pending', 'search' => request('search')])) }}" 
+            class="{{ $filter === 'pending' ? 'font-bold underline' : '' }}"
+        >
+            Pendientes
+        </a>
+    </div>
+
+    <form method="GET" action="{{ route('tasks.index') }}" class="mb-4 flex items-center gap-2">
+        <input 
+            type="text" 
+            name="search" 
+            value="{{ request('search') }}" 
+            placeholder="Buscar tareas..." 
+            class="border rounded px-3 py-1 w-full"
+        >
+        @if ($filter)
+            <input type="hidden" name="filter" value="{{ $filter }}">
+        @endif
+        <button 
+            type="submit" 
+            class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition"
+        >
+            Buscar
+        </button>
+    </form>
+
+
+
     <ul class="space-y-3 mt-4">
         <x-task-list :tasks="$tasks" />
     </ul>
 
-    <x-pagination :paginator="$tasks" />
+    <x-pagination :paginator="$tasks->appends(request()->only(['filter', 'search']))" />
     <x-create-task />
     <x-edit-task />
 
@@ -136,10 +200,7 @@
         }
 
         // Confirmación de eliminación
-        if (confirm('¿Estás seguro de que querés eliminar las tareas seleccionadas?')) {
-            // Enviar la petición AJAX
-            console.log('Tareas seleccionadas:', selectedTasks);
-
+        showModalConfirm(() => {
             fetch(bulkDeleteUrl, {
                 method: 'DELETE',
                 headers: {
@@ -147,7 +208,7 @@
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 },
                 body: JSON.stringify({ selected_tasks: selectedTasks })
-            })
+            })  
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Error al eliminar las tareas');
@@ -156,14 +217,24 @@
             })
             .then(data => {
                 console.log('Tareas eliminadas:', data);
-                location.reload(); // o actualizá la vista manualmente
+
+                // Eliminamos los elementos de la lista
+                data.deleted_ids.forEach(id => {
+                    const taskElement = document.getElementById(`task-${id}`);
+                    if (taskElement) {
+                        taskElement.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+                        setTimeout(() => taskElement.remove(), 300);
+                    }
+                });
+
+                // Mostramos mensaje de éxito
+                showSuccessMessage('Tareas eliminadas con éxito.');
             })
             .catch(error => {
                 console.error(error);
                 alert("Hubo un error al eliminar las tareas.");
             });
-
-        }
+        }); 
     });
 </script>
 
@@ -187,6 +258,66 @@
         taskInputs.appendChild(newTaskGroup);
         taskIndex++;
     }
+</script>
+
+<!-- Modal de confirmación -->
+<div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden justify-center items-center z-50">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl animate-scale-in">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">¿Estás seguro?</h2>
+        <p class="text-sm text-gray-600 mb-6">Esta acción no se puede deshacer.</p>
+        <div class="flex justify-end space-x-3">
+            <button id="cancelConfirmBtn" class="bg-gray-300 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-400 transition">Cancelar</button>
+            <button id="confirmDeleteBtn" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">Eliminar</button>
+        </div>
+    </div>
+</div>
+<script>
+    let onConfirm = null; // función que se ejecuta si el usuario confirma
+
+    function showModalConfirm(callback) {
+        onConfirm = callback;
+        document.getElementById('confirmModal').classList.remove('hidden');
+    }
+
+    document.getElementById('cancelConfirmBtn').addEventListener('click', () => {
+        document.getElementById('confirmModal').classList.add('hidden');
+        onConfirm = null;
+    });
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', () => {
+        if (onConfirm) onConfirm();
+        document.getElementById('confirmModal').classList.add('hidden');
+    });
+</script>
+
+<script>
+    function confirmDeleteIndividual(form) {
+        showModalConfirm(() => {
+            form.submit();
+        });
+    }
+</script>
+<div id="successMessage" class="fixed top-16 left-1/2 transform -translate-x-1/2 bg-green-500 text-white text-center py-4 px-10 rounded-md shadow-md z-50 opacity-0">
+    <span id="successMessageText"></span>
+</div>
+
+<script>
+    function showSuccessMessage(message) {
+        const box = document.getElementById('successMessage');
+        const text = document.getElementById('successMessageText');
+        text.textContent = message;
+        box.classList.remove('hidden');
+        box.classList.add('opacity-100');
+
+        setTimeout(() => {
+            box.classList.add('opacity-0');
+            setTimeout(() => box.classList.add('hidden'), 300);
+        }, 2500);
+    }
+</script>
+
+<script>
+    lucide.createIcons();
 </script>
 
 @endsection
