@@ -5,7 +5,11 @@ use Illuminate\Support\Facades\Route;
 
 
 Route::delete('/tasks/bulk-delete', [TaskController::class, 'bulkDelete'])->name('tasks.bulkDelete');
-Route::post('/tasks/bulk-store', [TaskController::class, 'bulkStore'])->name('tasks.bulkStore');
+// Route::post('/tasks/bulk-store', [TaskController::class, 'bulkStore'])->name('tasks.bulkStore');
+Route::patch('/tasks/{task}/toggle', [TaskController::class, 'toggle'])->name('tasks.toggle');
+Route::post('/tasks', [TaskController::class, 'store']);
+Route::get('/tasks/{task}', [TaskController::class, 'show'])->name('tasks.show');
+
 
 
 

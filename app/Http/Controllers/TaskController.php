@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Task;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\View;
+
 
 class TaskController extends Controller
 {
@@ -31,28 +33,41 @@ class TaskController extends Controller
     /// Guardar una nueva tarea
     public function store(Request $request)
     {
-        // Validación de los datos del formulario
         $validated = $request->validate([
-            'name' => 'required|string|max:255',  // El nombre es obligatorio, debe ser una cadena de texto y no superar los 255 caracteres
-            'description' => 'required|string|max:500',  // La descripción es obligatoria y no debe superar los 500 caracteres
-            'completed' => 'nullable|boolean',  // El campo "completed" es opcional y debe ser un valor booleano
+            'tasks.*.name' => 'required|string|max:255',
+            'tasks.*.description' => 'nullable|string',
         ]);
-
-        // Si la validación es exitosa, se guardan los datos
-        $task = new Task;
-        $task->name = $validated['name'];
-        $task->description = $validated['description'];
-        $task->completed = $validated['completed'] ?? false;  // Si "completed" no se envía, se asume como false
-        $task->save();
-
-        // Redirige al listado de tareas con un mensaje de éxito
-        return redirect()->route('tasks.index')->with('success', 'Tarea guardada correctamente.');
+    
+        $renderedTasks = [];
+    
+        foreach ($request->tasks as $taskData) {
+            $task = Task::create([
+                'name' => $taskData['name'],
+                'description' => $taskData['description'] ?? null,
+            ]);
+    
+            // Renderiza el componente Blade como string HTML
+            $renderedTasks[] = View::make('components.task', ['task' => $task])->render();
+        }
+    
+        return response()->json([
+            'success' => true,
+            'taskHtml' => $renderedTasks
+        ]);
     }
+    
+    
+    public function show(Task $task)
+{
+    return response()->json($task);
+}
+
 
     public function edit($id)
     {
         $task = Task::findOrFail($id);
-        return view('tasks.edit', compact('task'));
+        // return view('tasks.edit', compact('task'));
+        return response()->json($task);
     }
 
     public function update(Request $request, $id)
@@ -70,7 +85,9 @@ class TaskController extends Controller
             'completed' => $request->has('completed'),
         ]);
 
-        return redirect()->route('tasks.index')->with('success', 'Tarea actualizada correctamente.');
+        // return redirect()->route('tasks.index')->with('success', 'Tarea actualizada correctamente.');
+        return response()->json($task);
+
     }
 
     public function destroy($id)
@@ -86,9 +103,13 @@ class TaskController extends Controller
         $task = Task::findOrFail($id);
         $task->completed = !$task->completed;
         $task->save();
-
-        return redirect()->route('tasks.index')->with('success', 'Tarea actualizada.');
+    
+        return response()->json([
+            'success' => true,
+            'completed' => $task->completed
+        ]);
     }
+    
     
     public function bulkDelete(Request $request)
     {
